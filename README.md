@@ -218,3 +218,37 @@ curl http://localhost:8000/health
 - Serving needs only `requirements-serve.txt` (no MLflow, Jupyter or plotting libraries).
 - Runs as a non-root user, with a `HEALTHCHECK` on `/health`.
 - `MODEL_PATH` and `PREDICTION_THRESHOLD` can be overridden with `-e`.
+
+## Kubernetes deployment
+
+Tested on Docker Desktop's built-in Kubernetes. Manifests in `k8s/` are managed with Kustomize (built into `kubectl`).
+
+| File | Purpose |
+|---|---|
+| `namespace.yaml` | `heart-disease` namespace |
+| `deployment.yaml` | 2 replicas, rolling updates, startup/readiness/liveness probes on `/health`, CPU/memory limits, non-root read-only container |
+| `service.yaml` | `LoadBalancer` on port 8080 (published on `localhost` by Docker Desktop) |
+| `kustomization.yaml` | Namespace, image tag, and a generated ConfigMap (`PREDICTION_THRESHOLD`) |
+| `optional/hpa.yaml` | CPU-based autoscaling, 2-5 pods (needs metrics-server) |
+
+```bash
+docker build -t heart-disease-api:v1 .
+kubectl apply -k k8s
+kubectl -n heart-disease rollout status deployment/heart-disease-api
+kubectl -n heart-disease get pods,svc
+curl -X POST http://localhost:8080/predict -H "Content-Type: application/json" -d @samples/patient.json
+```
+
+Operations:
+
+```bash
+kubectl -n heart-disease scale deployment/heart-disease-api --replicas=3   # scale
+kubectl -n heart-disease delete pod <pod-name>                              # self-healing
+kubectl -n heart-disease rollout history deployment/heart-disease-api       # revisions
+kubectl -n heart-disease rollout undo deployment/heart-disease-api          # rollback
+kubectl delete -k k8s                                                       # remove everything
+```
+
+Changing `PREDICTION_THRESHOLD` in `kustomization.yaml` and re-running `kubectl apply -k k8s` creates a new ConfigMap and triggers a zero-downtime rolling update.
+
+To deploy the CI-published image instead of the local one, set `newName: ghcr.io/<owner>/heart-disease-api` and `newTag: latest` under `images:` in `kustomization.yaml`.

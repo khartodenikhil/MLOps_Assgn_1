@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+import socket
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -77,6 +78,8 @@ def root() -> dict:
     return {
         "service": app.title,
         "version": app.version,
+        # In Kubernetes the hostname is the pod name, which shows load balancing.
+        "instance": socket.gethostname(),
         "docs": "/docs",
         "endpoints": ["/health", "/model/info", "/predict", "/predict/batch"],
     }

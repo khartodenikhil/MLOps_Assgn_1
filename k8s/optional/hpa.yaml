@@ -1,0 +1,22 @@
+# Optional: scale between 2 and 5 pods based on CPU usage.
+# Requires metrics-server (see README, "Optional: autoscaling").
+#   kubectl apply -f k8s/optional/hpa.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: heart-disease-api
+  namespace: heart-disease
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: heart-disease-api
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

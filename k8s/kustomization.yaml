@@ -1,0 +1,27 @@
+# Apply everything with:   kubectl apply -k k8s
+# Preview the YAML with:   kubectl kustomize k8s
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: heart-disease
+
+resources:
+  - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+
+# The generated ConfigMap name includes a hash of its contents, so changing a
+# value here and re-applying automatically triggers a rolling update.
+configMapGenerator:
+  - name: heart-disease-api-config
+    literals:
+      - PREDICTION_THRESHOLD=0.5
+
+# Local image built with `docker build -t heart-disease-api:v1 .`
+# To deploy the CI-published image instead, use:
+#   - name: heart-disease-api
+#     newName: ghcr.io/<your-username>/heart-disease-api
+#     newTag: latest
+images:
+  - name: heart-disease-api
+    newTag: v1

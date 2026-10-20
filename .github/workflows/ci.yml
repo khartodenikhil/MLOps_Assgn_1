@@ -35,6 +35,9 @@ jobs:
       - name: Ruff
         run: ruff check . --output-format=github
 
+      - name: Render Kubernetes manifests
+        run: kubectl kustomize k8s
+
   # ------------------------------------------------------------------------ #
   test:
     name: Tests (Python ${{ matrix.python-version }})
