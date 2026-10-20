@@ -16,14 +16,17 @@ import hashlib
 import json
 import logging
 import os
+import platform
 import subprocess
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 
 import joblib
 import mlflow
 import mlflow.sklearn
 import pandas as pd
+import sklearn
 from mlflow.models import infer_signature
 from mlflow.tracking import MlflowClient
 from sklearn.base import BaseEstimator, clone
@@ -40,7 +43,7 @@ from src.evaluate import (
     plot_feature_importance,
     plot_roc_curves,
 )
-from src.features import build_preprocessor, split_xy
+from src.features import FEATURES, build_preprocessor, split_xy
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +52,7 @@ MODELS_DIR = PROJECT_ROOT / "models"
 REPORTS_DIR = PROJECT_ROOT / "reports"
 FIG_DIR = REPORTS_DIR / "figures" / "models"
 MODEL_PATH = MODELS_DIR / "model.joblib"
+META_PATH = MODELS_DIR / "model_meta.json"
 
 # MLflow: a local SQLite store supports the Model Registry; artifacts go to ./mlruns.
 TRACKING_URI = os.getenv(
@@ -310,6 +314,22 @@ def run(
         MODELS_DIR.mkdir(parents=True, exist_ok=True)
         joblib.dump(best.pipeline, MODEL_PATH)
 
+        # Metadata travels with the model so anyone loading it knows exactly
+        # what produced it and which library versions it expects.
+        meta = {
+            "model_name": best.name,
+            "features": FEATURES,
+            "threshold": 0.5,
+            "trained_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "python_version": platform.python_version(),
+            "sklearn_version": sklearn.__version__,
+            "git_commit": git_commit(),
+            "data_md5": file_md5(CLEAN_FILE),
+            "mlflow_run_id": best.run_id,
+            "test_metrics": best.test_metrics,
+        }
+        META_PATH.write_text(json.dumps(meta, indent=2))
+
         summary = {
             "selected_model": best.name,
             "selection_metric": select_metric,
@@ -328,7 +348,7 @@ def run(
 
         mlflow.set_tag("selected_model", best.name)
         mlflow.log_metrics({f"best_test_{k}": v for k, v in best.test_metrics.items()})
-        for path in (roc_path, table_path, metrics_path):
+        for path in (roc_path, table_path, metrics_path, META_PATH):
             mlflow.log_artifact(str(path))
 
         if register:

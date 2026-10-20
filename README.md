@@ -105,3 +105,43 @@ The selected model is registered as `heart-disease-classifier` with the alias `c
 python -m src.train --log-candidates                  # also log every grid combination
 mlflow ui --backend-store-uri sqlite:///mlflow.db     # open http://127.0.0.1:5000
 ```
+
+## Inference
+
+The saved artifact is a full sklearn `Pipeline`, so it accepts raw feature values; no separate preprocessing step is needed.
+
+```bash
+python -m src.predict --input samples/patients.json                     # models/model.joblib
+python -m src.predict --input samples/patients.json --source registry   # MLflow 'champion'
+```
+
+Example output:
+
+```json
+[{"prediction": 1, "label": "Disease", "probability_disease": 0.91, "confidence": 0.91}]
+```
+
+Missing fields are imputed by the pipeline (the third sample patient omits `ca`); unknown fields are rejected. `MODEL_PATH` and `PREDICTION_THRESHOLD` can be set as environment variables.
+
+| File | Purpose |
+|---|---|
+| `models/model.joblib` | Preprocessing + model pipeline |
+| `models/model_meta.json` | Model name, features, library versions, git commit, data hash, metrics |
+
+## Reproducibility
+
+- All dependencies are pinned in `requirements.txt`.
+- One seed (`42`) controls the train/test split, CV folds and every model.
+- `models/model_meta.json` records the Python and scikit-learn versions used; `src/predict.py` warns if they differ at load time.
+- Each MLflow run is tagged with the git commit and an MD5 hash of the training data.
+
+To rebuild everything in a fresh environment and confirm the metrics match:
+
+```bash
+# Windows
+powershell -ExecutionPolicy Bypass -File scripts\reproduce.ps1
+# macOS/Linux
+bash scripts/reproduce.sh
+```
+
+The script creates `.venv-repro`, installs from `requirements.txt`, re-downloads the data, retrains, predicts on the samples, and fails if any metric differs from the committed `reports/metrics.json`.
