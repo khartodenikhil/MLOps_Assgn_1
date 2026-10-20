@@ -63,3 +63,27 @@ jupyter notebook notebooks/01_eda.ipynb
 ```
 
 Figures are saved to `reports/figures/`.
+
+## Model training
+
+```bash
+python -m src.train                        # select by CV ROC-AUC (default)
+python -m src.train --select-metric recall # prioritise catching disease cases
+```
+
+Three models are tuned with `GridSearchCV` and stratified 5-fold cross-validation on an 80/20 stratified split (seed 42):
+
+- Logistic Regression
+- Random Forest
+- Gradient Boosting
+
+Preprocessing (imputation, scaling, one-hot encoding) lives inside the sklearn `Pipeline`, so the saved model takes raw feature values.
+
+Outputs:
+
+| Path | Contents |
+|---|---|
+| `models/model.joblib` | Best full pipeline (preprocessing + model) |
+| `reports/model_comparison.csv` | CV and test metrics for every model |
+| `reports/metrics.json` | Selected model, parameters and metrics |
+| `reports/figures/models/` | Confusion matrices, ROC curves, feature importances |
