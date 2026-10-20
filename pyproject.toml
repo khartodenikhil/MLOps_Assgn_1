@@ -1,0 +1,26 @@
+# Tool configuration (dependencies live in requirements*.txt)
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra"
+
+[tool.coverage.run]
+source = ["src"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 60
+exclude_also = [
+    'if __name__ == "__main__":',
+    "def main",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+extend-exclude = ["notebooks", ".venv-repro"]
+
+[tool.ruff.lint]
+# pycodestyle errors/warnings + pyflakes (unused imports, undefined names, ...)
+select = ["E", "F", "W"]

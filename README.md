@@ -1,5 +1,7 @@
 # Heart Disease Risk Prediction - MLOps Pipeline
 
+![CI](https://github.com/khartodenikhil/MLOps_Assgn_1/actions/workflows/ci.yml/badge.svg)
+
 End-to-end MLOps project for BITS Pilani AIMLCZG523 (Assignment 01): predicting heart disease risk from patient health data using the UCI Heart Disease (Cleveland) dataset.
 
 ## Project structure
@@ -145,3 +147,34 @@ bash scripts/reproduce.sh
 ```
 
 The script creates `.venv-repro`, installs from `requirements.txt`, re-downloads the data, retrains, predicts on the samples, and fails if any metric differs from the committed `reports/metrics.json`.
+
+## Testing and linting
+
+```bash
+pytest                      # all tests
+pytest --cov                # with coverage report (fails below 60%)
+ruff check .                # lint
+```
+
+Tests use synthetic data and fake network responses, so they run offline in a few seconds.
+
+| Test file | Covers |
+|---|---|
+| `test_data.py` | `?` parsing, binary target, missing-value strategies, duplicates, range/category validation, download |
+| `test_features.py` | Output shape, scaling, one-hot encoding, imputation, unseen categories |
+| `test_train.py` | Grid search returns all CV and test metrics; model beats chance |
+| `test_evaluate.py` | Metric calculation, plot files |
+| `test_predict.py` | Output structure, threshold, missing/unknown/invalid fields, model loading, version warning |
+| `test_compare_metrics.py` | Reproducibility checker |
+
+## CI/CD (GitHub Actions)
+
+`.github/workflows/ci.yml` runs on every push to `main`, every pull request, and on demand:
+
+```
+lint (ruff) ──► test (Python 3.10 + 3.11, coverage) ──► train (download → train → predict → compare)
+```
+
+- Each stage only runs if the previous one passed, so a lint error or failing test stops the pipeline.
+- Test results (JUnit XML, coverage) and the trained model, reports and MLflow runs are uploaded as workflow artifacts.
+- The train job writes a model comparison table to the run's summary page.
