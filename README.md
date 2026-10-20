@@ -87,3 +87,21 @@ Outputs:
 | `reports/model_comparison.csv` | CV and test metrics for every model |
 | `reports/metrics.json` | Selected model, parameters and metrics |
 | `reports/figures/models/` | Confusion matrices, ROC curves, feature importances |
+
+## Experiment tracking (MLflow)
+
+Every training run is logged to MLflow (local SQLite store `mlflow.db`, artifacts in `mlruns/`):
+
+```
+model_selection_<metric>          parent run: config, data hash, git commit, ROC plot, comparison table
+├── logistic_regression           best params, CV mean/std + test metrics, plots, model
+├── random_forest
+└── gradient_boosting
+```
+
+The selected model is registered as `heart-disease-classifier` with the alias `champion`.
+
+```bash
+python -m src.train --log-candidates                  # also log every grid combination
+mlflow ui --backend-store-uri sqlite:///mlflow.db     # open http://127.0.0.1:5000
+```
