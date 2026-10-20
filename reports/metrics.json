@@ -1,7 +1,7 @@
 {
   "selected_model": "random_forest",
   "selection_metric": "roc_auc",
-  "mlflow_run_id": "48e9d95787a94e76a37392c3001f9e6c",
+  "mlflow_run_id": "0dde488e1a804ef08d4bb2c235a45a2f",
   "best_params": {
     "class_weight": null,
     "max_depth": 8,
