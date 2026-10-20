@@ -16,12 +16,12 @@
     "thal"
   ],
   "threshold": 0.5,
-  "trained_at": "2026-10-20T14:49:35+00:00",
+  "trained_at": "2026-10-20T14:57:18+00:00",
   "python_version": "3.10.4",
   "sklearn_version": "1.5.2",
-  "git_commit": "a39bff97393e4857ee6ca701bf1ea2b500a7d7f9",
+  "git_commit": "07a9c24eb737e3a7d99ac4c52f739be311c33c9f",
   "data_md5": "8105273744b6657e9c175c2371494b36",
-  "mlflow_run_id": "3c3115a7f32749969987a3d6c6329f8f",
+  "mlflow_run_id": "48e9d95787a94e76a37392c3001f9e6c",
   "test_metrics": {
     "accuracy": 0.8166666666666667,
     "precision": 0.84,
