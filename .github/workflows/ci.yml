@@ -76,6 +76,58 @@ jobs:
             reports/coverage.xml
 
   # ------------------------------------------------------------------------ #
+  docker:
+    name: Build, smoke-test and publish Docker image
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set image name (GHCR needs lowercase)
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/heart-disease-api" >> "$GITHUB_ENV"
+
+      - name: Build image
+        run: >
+          docker build
+          --label org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          -t "$IMAGE:${{ github.sha }}"
+          -t "$IMAGE:latest"
+          .
+
+      - name: Start container
+        run: docker run -d --name api -p 8000:8000 "$IMAGE:latest"
+
+      - name: Wait for /health
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8000/health; then echo; exit 0; fi
+            sleep 2
+          done
+          echo "API did not become healthy"
+          exit 1
+
+      - name: Smoke-test /predict
+        run: |
+          curl -sf -X POST http://localhost:8000/predict \
+            -H "Content-Type: application/json" \
+            -d @samples/patient.json | tee response.json
+          python3 -c "import json; r = json.load(open('response.json')); assert r['prediction'] in (0, 1); print('\nOK:', r)"
+
+      - name: Container logs
+        if: always()
+        run: docker logs api || true
+
+      - name: Push to GitHub Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:latest"
+
+  # ------------------------------------------------------------------------ #
   train:
     name: Train and validate model
     needs: test

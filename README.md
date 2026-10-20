@@ -1,6 +1,6 @@
 # Heart Disease Risk Prediction - MLOps Pipeline
 
-![CI](https://github.com/khartodenikhil/MLOps_Assgn_1/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/<your-username>/<your-repo>/actions/workflows/ci.yml/badge.svg)
 
 End-to-end MLOps project for BITS Pilani AIMLCZG523 (Assignment 01): predicting heart disease risk from patient health data using the UCI Heart Disease (Cleveland) dataset.
 
@@ -172,9 +172,49 @@ Tests use synthetic data and fake network responses, so they run offline in a fe
 `.github/workflows/ci.yml` runs on every push to `main`, every pull request, and on demand:
 
 ```
-lint (ruff) ──► test (Python 3.10 + 3.11, coverage) ──► train (download → train → predict → compare)
+                                                    ┌─► train (download → train → predict → compare)
+lint (ruff) ──► test (Python 3.10 + 3.11, coverage) ┤
+                                                    └─► docker (build → smoke-test → push to GHCR)
 ```
 
 - Each stage only runs if the previous one passed, so a lint error or failing test stops the pipeline.
 - Test results (JUnit XML, coverage) and the trained model, reports and MLflow runs are uploaded as workflow artifacts.
 - The train job writes a model comparison table to the run's summary page.
+- On pushes to `main`, the Docker image is published to `ghcr.io/<owner>/heart-disease-api` tagged `latest` and with the commit SHA.
+
+## Prediction API (FastAPI)
+
+```bash
+uvicorn src.api.main:app --reload       # http://127.0.0.1:8000/docs
+```
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/` | Service info |
+| GET | `/health` | 200 if the model is loaded, 503 otherwise |
+| GET | `/model/info` | Model name, features, versions, test metrics |
+| POST | `/predict` | One patient → prediction + confidence |
+| POST | `/predict/batch` | Up to 100 patients |
+
+Inputs are validated with Pydantic using the same ranges and categories as the data checks; invalid or unknown fields return `422`. `ca` and `thal` are optional and imputed when missing.
+
+```bash
+curl -X POST http://127.0.0.1:8000/predict -H "Content-Type: application/json" -d @samples/patient.json
+```
+
+```json
+{"prediction": 1, "label": "Disease", "probability_disease": 0.91, "confidence": 0.91, "model_name": "random_forest"}
+```
+
+## Docker
+
+```bash
+docker build -t heart-disease-api .
+docker run -d --name heart-api -p 8000:8000 heart-disease-api
+curl http://localhost:8000/health
+```
+
+- Multi-stage build: dependencies are installed in a builder stage; the runtime image contains only the virtual environment, `src/` and the model.
+- Serving needs only `requirements-serve.txt` (no MLflow, Jupyter or plotting libraries).
+- Runs as a non-root user, with a `HEALTHCHECK` on `/health`.
+- `MODEL_PATH` and `PREDICTION_THRESHOLD` can be overridden with `-e`.
